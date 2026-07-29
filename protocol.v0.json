@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "protocol_id": "protein-pretrain-speedrun-v0",
+  "metric": {
+    "name": "long_range_contact_p_at_l",
+    "higher_is_better": true,
+    "sequence_separation_min": 24,
+    "contact_distance_angstrom": 8.0,
+    "top_predictions_per_residue": 1.0,
+    "minimum_true_contacts_per_residue": 0.25
+  },
+  "probe": {
+    "feature": "normalized_embedding_elementwise_product",
+    "optimizer": "adamw",
+    "learning_rate": 0.03,
+    "weight_decay": 0.0001,
+    "steps": 80,
+    "max_pairs_per_protein": 2048,
+    "negative_to_positive_ratio": 1.0,
+    "seed": 20260729
+  },
+  "target": {
+    "status": "calibration_required",
+    "value": null,
+    "calibration_candidate": "baseline_50m_mlm"
+  },
+  "hardware": {
+    "accelerator_name_contains": "H100 80GB",
+    "accelerators_per_run": 1
+  },
+  "runtime": {
+    "base_image_digest": "sha256:2b59b1b91885677814f78be1f8df48a25d5dc952eb6580eaecfefca510f9afd3",
+    "container_image_id": "sha256:4769b4f532d9a33edfec68e575362612794e7927b53d60483d07c08fc0900b4d",
+    "torch_version": "2.7.1+cu126",
+    "cuda_version": "12.6",
+    "cudnn_version": 90501
+  },
+  "stability": {
+    "consecutive_checkpoint_passes": 2,
+    "official_seeds": [42, 66, 101, 2024, 8888],
+    "required_seed_passes": 4,
+    "record_statistic": "median_confirmed_seconds"
+  },
+  "timing": {
+    "evaluation_excluded": true,
+    "data_materialization_excluded": true,
+    "checkpoint_serialization_excluded": true,
+    "compile_and_warmup": "included_until_official_protocol_freeze"
+  }
+}
