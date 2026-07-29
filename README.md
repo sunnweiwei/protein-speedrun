@@ -100,7 +100,9 @@ repository's deliberately simple Transformer implementation. The pilot config
 is only for memory, throughput, and contract checks; it is not a training
 budget. `configs/esm2-150m-d0.json` is the first development budget: BF16,
 global batch 2048 across eight H100s, 1,000 updates, 50 warmup updates, and
-checkpoints every 100 updates.
+checkpoints every 100 updates. `configs/esm2-150m-d1-1h.json` extends the same
+constant-learning-rate setup to 8,000 updates, approximately one hour of
+measured training, with checkpoints every 500 updates.
 
 Choose another physical GPU or seed:
 
@@ -157,6 +159,13 @@ Contact P@L increased from 0.04252 at initialization to 0.05205, a 22.4%
 relative gain. The final checkpoint scored identically in a fresh standalone
 evaluator process. This is a development calibration result, not a
 leakage-audited FoldBench claim.
+
+The one-hour D1 constant-learning-rate control processed 2,917,942,981 tokens
+in 3,564.89 seconds. It reproduced the D0 trajectory exactly through step
+1,000, where Contact P@L peaked at 0.05205, then declined to 0.04434 by step
+8,000. Its purpose is to record that extending the `4e-4` constant learning
+rate does not produce monotonic scaling; longer-budget candidates should add a
+decay schedule rather than use D1 as a recommended recipe.
 
 ## Scope
 

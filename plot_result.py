@@ -59,9 +59,23 @@ def main() -> None:
         draw.ellipse((px - 6, py - 6, px + 6, py + 6), fill="#2563eb", outline="white", width=2)
 
     start, final = values[0], values[-1]
+    best_index = max(range(len(points)), key=lambda index: values[index])
+    best_x, best_y = xy(*points[best_index])
+    draw.ellipse(
+        (best_x - 8, best_y - 8, best_x + 8, best_y + 8),
+        outline="#0f8a4b",
+        width=4,
+    )
     draw.text((width / 2, 25), "150M Protein Pretraining Budget Curve", fill="#172033", font=bold, anchor="ma")
     draw.text((width / 2, height - 40), "Training tokens seen (millions)", fill="#263238", font=font, anchor="ma")
     draw.text((left, top - 14), "Contact P@L", fill="#263238", font=font, anchor="lb")
+    draw.text(
+        (best_x + 12, best_y - 12),
+        f"best {values[best_index]:.4f}",
+        fill="#096536",
+        font=small,
+        anchor="lb",
+    )
     final_x, final_y = xy(*points[-1])
     draw.text(
         (final_x - 8, final_y - 18),
