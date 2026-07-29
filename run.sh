@@ -43,6 +43,24 @@ docker_python() {
     python "$@"
 }
 
+docker_ddp() {
+  sudo docker --host "$docker_host" run --rm \
+    --network none \
+    --gpus all \
+    --user "$(id -u):$(id -g)" \
+    --env PYTHONPATH=/workspace \
+    --env CUBLAS_WORKSPACE_CONFIG=:4096:8 \
+    --env NCCL_ALGO=Ring \
+    --env NCCL_PROTO=Simple \
+    --volume "$project_root:/workspace:ro" \
+    --volume "$data_root:/data:ro" \
+    --volume "$run_root:/runs" \
+    --workdir /workspace \
+    "$image" \
+    torchrun --nnodes=1 --nproc-per-node=8 \
+      --master-addr=127.0.0.1 --master-port=29500 "$@"
+}
+
 command=${1:-}
 run_id=$(date -u +%Y%m%dT%H%M%SZ)
 case "$command" in
@@ -79,8 +97,28 @@ case "$command" in
         --output "$output_in_container"
     fi
     ;;
+  ddp)
+    config=${2:-$project_root/configs/esm2-150m-d0.json}
+    corpus=${3:-$data_root/uniref50_2021_04_d0/corpus.json}
+    output=${4:-$run_root/esm2-150m-d0/$run_id}
+    case "$config:$corpus:$output" in
+      "$project_root"/*:"$data_root"/*:"$run_root"/*) ;;
+      *) echo "config/corpus/output must stay under their configured roots" >&2; exit 2 ;;
+    esac
+    if [ ! -f "$config" ] || [ ! -f "$corpus" ]; then
+      echo "missing config or corpus: $config $corpus" >&2
+      exit 2
+    fi
+    config_in_container=/workspace/${config#"$project_root/"}
+    corpus_in_container=/data/${corpus#"$data_root/"}
+    output_in_container=/runs/${output#"$run_root/"}
+    docker_ddp speedrun.py run \
+      --config "$config_in_container" \
+      --corpus "$corpus_in_container" \
+      --output "$output_in_container"
+    ;;
   *)
-    echo "usage: $0 {smoke|run [CORPUS OUTPUT SEED]}" >&2
+    echo "usage: $0 {smoke|run [CORPUS OUTPUT SEED]|ddp [CONFIG CORPUS OUTPUT]}" >&2
     exit 2
     ;;
 esac

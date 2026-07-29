@@ -33,6 +33,17 @@ class ProteinTransformer(nn.Module):
         )
         self.lm_head = nn.Linear(width, int(config["vocab_size"]), bias=False)
         self.lm_head.weight = self.token_embedding.weight
+        self._reset_parameters()
+
+    def _reset_parameters(self) -> None:
+        """Use the stable BERT/ESM initialization instead of unit-scale embeddings."""
+        for name, parameter in self.named_parameters():
+            if parameter.ndim > 1:
+                nn.init.normal_(parameter, mean=0.0, std=0.02)
+            elif name.endswith("weight"):
+                nn.init.ones_(parameter)
+            else:
+                nn.init.zeros_(parameter)
 
     def encode(
         self, tokens: torch.Tensor, padding_mask: torch.Tensor
@@ -77,6 +88,16 @@ def build_optimizer(
     )
 
 
+def set_optimizer_step(
+    optimizer: torch.optim.Optimizer, step: int, config: dict[str, Any]
+) -> None:
+    """Apply the reference linear warmup before each optimizer update."""
+    warmup_steps = int(config.get("warmup_steps", 0))
+    scale = min(1.0, step / warmup_steps) if warmup_steps else 1.0
+    for group in optimizer.param_groups:
+        group["lr"] = float(config["learning_rate"]) * scale
+
+
 def training_loss(
     model: nn.Module,
     tokens: torch.Tensor,
@@ -94,7 +115,19 @@ def training_loss(
         empty = ~selected.any(dim=1)
         selected[empty, 0] = True
         corrupted = tokens.clone()
-        corrupted[selected] = int(config["mask_token_id"])
+        corruption = torch.rand(
+            tokens.shape, device=tokens.device, generator=generator
+        )
+        replaced = selected & (corruption < 0.8)
+        randomized = selected & (corruption >= 0.8) & (corruption < 0.9)
+        corrupted[replaced] = int(config["mask_token_id"])
+        corrupted[randomized] = torch.randint(
+            0,
+            20,
+            (int(randomized.sum()),),
+            device=tokens.device,
+            generator=generator,
+        )
         return nn.functional.cross_entropy(
             model.logits(corrupted, padding_mask)[selected],
             tokens[selected],
