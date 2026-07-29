@@ -1,0 +1,24 @@
+{
+  "batch_size": 2048,
+  "checkpoint_every": 100,
+  "learning_rate": 0.0004,
+  "mask_probability": 0.15,
+  "mask_token_id": 22,
+  "model": {
+    "attention": "bidirectional",
+    "ffn_multiplier": 4,
+    "heads": 20,
+    "layers": 30,
+    "max_length": 1024,
+    "vocab_size": 23,
+    "width": 640
+  },
+  "objective": "mlm",
+  "precision": "bf16",
+  "seed": 42,
+  "steps": 1000,
+  "target_contact_p_at_l": null,
+  "train_max_length": 256,
+  "warmup_steps": 50,
+  "weight_decay": 0.01
+}

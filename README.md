@@ -16,6 +16,7 @@ config, one trusted runner, and one score.
 - `config.json`: model size, training budget, and optional target.
 - `speedrun.py`: fixed data contract, timing, checkpointing, and Contact P@L.
 - `plot_result.py`: dependency-light budget-curve renderer.
+- `records/`: raw JSON outputs and a short experiment index.
 - `run.sh`: Docker-only entrypoint using the large workspace disk.
 
 The checkpoint contract is:

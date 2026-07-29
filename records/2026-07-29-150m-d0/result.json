@@ -1,0 +1,107 @@
+{
+  "contact_p_at_l": 0.05205134134807617,
+  "corpus_sha256": "f4d76eabe12265179d8e4f82151440d3a9c2a154ff0873c6e667083f0cef899a",
+  "global_batch_size": 2048,
+  "history": [
+    {
+      "contact_p_at_l": 0.0425240760176259,
+      "eligible_proteins": 137,
+      "evaluation_seconds": 11.50014014635235,
+      "step": 0,
+      "tokens_seen": 0,
+      "training_seconds": 1.740761062130332
+    },
+    {
+      "contact_p_at_l": 0.04617830515451675,
+      "eligible_proteins": 137,
+      "evaluation_seconds": 2.683431430719793,
+      "step": 100,
+      "tokens_seen": 36474953,
+      "training_seconds": 47.258615729399025
+    },
+    {
+      "contact_p_at_l": 0.046186682771565055,
+      "eligible_proteins": 137,
+      "evaluation_seconds": 2.604588641785085,
+      "step": 200,
+      "tokens_seen": 72931727,
+      "training_seconds": 91.90871573146433
+    },
+    {
+      "contact_p_at_l": 0.04474407536093227,
+      "eligible_proteins": 137,
+      "evaluation_seconds": 2.622862621676177,
+      "step": 300,
+      "tokens_seen": 109445673,
+      "training_seconds": 136.58162313560024
+    },
+    {
+      "contact_p_at_l": 0.046403901260618094,
+      "eligible_proteins": 137,
+      "evaluation_seconds": 2.6899814950302243,
+      "step": 400,
+      "tokens_seen": 145903563,
+      "training_seconds": 181.27007823064923
+    },
+    {
+      "contact_p_at_l": 0.047213239306380064,
+      "eligible_proteins": 137,
+      "evaluation_seconds": 2.6484275669790804,
+      "step": 500,
+      "tokens_seen": 182394451,
+      "training_seconds": 225.96497339755297
+    },
+    {
+      "contact_p_at_l": 0.0508492448754663,
+      "eligible_proteins": 137,
+      "evaluation_seconds": 2.616776380687952,
+      "step": 600,
+      "tokens_seen": 218866816,
+      "training_seconds": 270.6465553813614
+    },
+    {
+      "contact_p_at_l": 0.05063533815589264,
+      "eligible_proteins": 137,
+      "evaluation_seconds": 2.610573868267238,
+      "step": 700,
+      "tokens_seen": 255336316,
+      "training_seconds": 315.3256370490417
+    },
+    {
+      "contact_p_at_l": 0.05107149118081714,
+      "eligible_proteins": 137,
+      "evaluation_seconds": 2.612569339107722,
+      "step": 800,
+      "tokens_seen": 291790518,
+      "training_seconds": 360.01289681578055
+    },
+    {
+      "contact_p_at_l": 0.05051724097086457,
+      "eligible_proteins": 137,
+      "evaluation_seconds": 2.6272742464207113,
+      "step": 900,
+      "tokens_seen": 328351906,
+      "training_seconds": 404.69353169575334
+    },
+    {
+      "contact_p_at_l": 0.05205134134807617,
+      "eligible_proteins": 137,
+      "evaluation_seconds": 2.6189432651735842,
+      "step": 1000,
+      "tokens_seen": 364810091,
+      "training_seconds": 449.37975632213056
+    }
+  ],
+  "last_learning_rate": 0.0004,
+  "last_loss": 2.616328239440918,
+  "local_world_size": 8,
+  "parameters": 148376960,
+  "peak_memory_allocated_bytes": 51557256192,
+  "peak_memory_reserved_bytes": 52036632576,
+  "seed": 42,
+  "status": "calibration",
+  "step": 1000,
+  "tokens_seen": 364810091,
+  "training_seconds": 449.37975632213056,
+  "world_size": 8
+}
