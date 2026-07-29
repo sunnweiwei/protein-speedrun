@@ -1,0 +1,22 @@
+{
+  "seed": 42,
+  "objective": "mlm",
+  "steps": 2,
+  "checkpoint_every": 1,
+  "batch_size": 4,
+  "train_max_length": 256,
+  "mask_probability": 0.15,
+  "mask_token_id": 22,
+  "learning_rate": 0.002,
+  "weight_decay": 0.01,
+  "target_contact_p_at_l": null,
+  "model": {
+    "vocab_size": 23,
+    "max_length": 768,
+    "width": 32,
+    "layers": 2,
+    "heads": 4,
+    "ffn_multiplier": 2,
+    "attention": "bidirectional"
+  }
+}

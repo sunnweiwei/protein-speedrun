@@ -1,214 +1,166 @@
-# Protein Pretraining Speedrun
+# Protein Speedrun
 
-This track asks one question:
+A minimal modded-nanoGPT-style loop for protein sequence pretraining.
 
-> How quickly can a protein sequence model reach a fixed, transferable
-> structural-representation quality?
+The experiment asks one question:
 
-It follows the format of
-[`modded-nanogpt`](https://github.com/KellerJordan/modded-nanogpt), but replaces
-objective-specific language-model loss with one objective-neutral score:
+> How much H100 training time does a sequence model need to reach a fixed
+> long-range Contact P@L?
 
-`long_range_contact_p_at_l`
-
-The score is the macro mean of per-protein precision among the top `L`
-predicted long-range contacts. A long-range pair has sequence separation at
-least 24 residues and is a contact when its C-beta distance is below 8
-Angstrom (C-alpha is used when C-beta is unavailable).
-
-Training loss is an implementation detail. A submission may use MLM, causal
-next-token prediction, span corruption, a hybrid objective, or a new
-objective. The external evaluator only requires full-sequence residue
-embeddings through the checkpoint contract.
-
-## One number per stage
-
-The pretraining leaderboard exposes exactly one number:
-
-`median_confirmed_seconds_to_target`
-
-A run reaches the target only after two consecutive scheduled checkpoints
-score at or above the frozen Contact P@L target. The confirmation time is the
-training time at the second checkpoint. An official candidate uses seeds
-`42, 66, 101, 2024, 8888`; at least four must confirm, and the record time is
-the median confirmation time among successful seeds.
-
-The trusted schedule always evaluates step 0 and then every configured
-`checkpoint_every` steps, plus the final step when needed. A candidate cannot
-add free evaluations, skip a scheduled evaluation, or continue training after
-the callback confirms the target.
-
-Evaluation time is excluded from training time. Compilation and warmup policy
-will be frozen before the first official record. The v0 smoke runner measures
-only model-training sections and records evaluation wall time separately.
-Each checkpoint is evaluated in a fresh Python process, so evaluator CUDA
-initialization cannot hide candidate initialization or kernel warmup.
-Every run sees exactly one NVIDIA H100 80GB GPU. Different official seeds may
-run concurrently on different physical GPUs, but each seed is still an
-independent one-GPU record.
-The PyTorch base image is pinned by registry digest; PyTorch, CUDA, and cuDNN
-versions are checked against `protocol.v0.json` before timing begins.
-
-The future post-training leaderboard is deliberately outside v0. It will
-freeze the encoder, train the same folding/diffusion model with the same
-structural-data and compute budget, and report one FoldBench proxy score.
-
-## Fixed data
-
-The initial real-data profile is derived from the existing immutable
-`gold_small/v1` manifest:
-
-- 3,725 high-quality experimental PINDER complexes;
-- structural cutoff `2021-09-30`;
-- interface and sequence-cluster decontamination against FoldBench;
-- X-ray resolution at most 2.5 A or cryo-EM resolution at most 3.0 A; and
-- strict interface-completeness and biological-interface filters.
-
-Sequence clusters are deterministically assigned to:
-
-- pretraining train;
-- contact-probe train; or
-- contact-probe evaluation.
-
-No sequence cluster appears in more than one split. The materialized speedrun
-corpus contains packed amino-acid tokens and fixed C-beta coordinates in NPZ;
-raw structures remain in the large-disk operator data store.
-The current immutable materialization contains 1,533 train sequences, 170
-probe-training proteins, and 185 probe-evaluation proteins; 137 of the latter
-meet the frozen minimum-contact eligibility rule.
-
-`gold_small/v1` was originally selected for PPI structure training rather
-than billion-sequence language-model pretraining. It is intentionally a
-small, high-quality v0 speedrun corpus, not a claim that this is the final
-large-scale ESMC corpus.
-
-## Submission contract
-
-A candidate owns `submission/model.py` and `submission/train.py`.
-
-`submission/model.py` must export:
-
-```python
-def build_model(model_config: dict) -> torch.nn.Module: ...
-```
-
-The returned model must export:
-
-```python
-def encode(
-    tokens: torch.Tensor,          # [B, L], amino-acid vocabulary
-    padding_mask: torch.Tensor,    # [B, L], True for real residues
-) -> torch.Tensor:                 # [B, L, D]
-    ...
-```
-
-`model.py` must be self-contained apart from the Python/PyTorch runtime,
-because its exact bytes are copied into the checkpoint. Editing the candidate
-workspace later therefore cannot change how an old checkpoint is reconstructed.
-
-Every checkpoint is a directory containing:
-
-- `checkpoint.json`: immutable metadata and accounting;
-- `model_config.json`: constructor input; and
-- `model.py`: the immutable `build_model()` and `encode()` implementation
-  snapshot; and
-- `weights.pt`: a plain `state_dict`, loaded with `weights_only=True`.
-
-The evaluator rejects missing fields, non-finite accounting, data-manifest
-mismatches, and embedding outputs that violate shape or finiteness rules.
-
-## Docker-only usage
-
-All commands run project Python inside Docker. The host only invokes Docker
-and edits files. The isolated Docker daemon stores both Docker and containerd
-state on `/mnt/workspace`.
-
-```bash
-cd /mnt/workspace/sunweiwei_google_com/protein-speedrun
-
-./run.sh smoke
-```
-
-Set `PROTEIN_SPEEDRUN_GPU=1` (or another single index) to choose which physical
-GPU is exposed to the container.
-
-The smoke command:
-
-1. builds the image using the large-disk Docker daemon;
-2. creates a deterministic synthetic corpus under the large disk;
-3. trains the tiny reference encoder;
-4. externally evaluates every checkpoint;
-5. tests two-consecutive-checkpoint target confirmation; and
-6. runs the unit tests in the same image.
-
-Prepare the real `gold_small/v1` corpus with the already available Protenix
-runtime image:
-
-```bash
-./run.sh prepare-gold-small
-```
-
-Run one calibration seed:
-
-```bash
-./run.sh run \
-  configs/baseline_50m.json \
-  /mnt/workspace/sunweiwei_google_com/protein-pretrain-speedrun-data/gold_small_v1/corpus.npz \
-  /mnt/workspace/sunweiwei_google_com/protein-pretrain-speedrun-runs/baseline_50m/seed-42
-```
-
-Pass a fifth argument to override the config seed. This lets the five official
-seeds run concurrently on five physical GPUs without duplicating configs:
-
-```bash
-PROTEIN_SPEEDRUN_GPU=1 ./run.sh run \
-  configs/baseline_50m.json \
-  /mnt/workspace/sunweiwei_google_com/protein-pretrain-speedrun-data/gold_small_v1/corpus.npz \
-  /mnt/workspace/sunweiwei_google_com/protein-pretrain-speedrun-runs/baseline_50m/seed-66 \
-  66
-```
-
-The real config has no official target until baseline calibration is
-complete. Calibration freezes a target that is:
-
-1. comfortably above the untrained score;
-2. reached by all reference seeds;
-3. below the reference final score by a predeclared safety margin; and
-4. stable under repeated evaluator runs.
-
-After all five calibration seeds finish, ask the tool for the highest
-quantized target that satisfies predeclared margins and two-checkpoint
-confirmation for every seed:
-
-```bash
-./run.sh calibrate \
-  /mnt/workspace/sunweiwei_google_com/protein-pretrain-speedrun-runs/baseline_50m \
-  0.002 \
-  0.002
-```
-
-The output is explicitly a recommendation. It never edits
-`protocol.v0.json`; freezing the target remains a reviewed decision.
-
-Verify that repeated external evaluation of an unchanged checkpoint has no
-measurable jitter:
-
-```bash
-./run.sh verify \
-  /mnt/workspace/sunweiwei_google_com/protein-pretrain-speedrun-runs/baseline_50m/seed-42/checkpoints/step-00000500 \
-  /mnt/workspace/sunweiwei_google_com/protein-pretrain-speedrun-data/gold_small_v1/corpus.npz
-```
+The first version intentionally contains only one editable candidate, one
+config, one trusted runner, and one score.
 
 ## Files
 
-- `protocol.v0.json`: frozen metric, split, and stability semantics.
-- `speedrun/prepare_corpus.py`: immutable real/synthetic corpus builder.
-- `speedrun/checkpoint.py`: checkpoint contract.
-- `speedrun/contact_eval.py`: the sole pretraining metric.
-- `speedrun/evaluate_once.py`: process-isolated trusted checkpoint evaluation.
-- `speedrun/evaluate.py`: repeated evaluator-jitter check.
-- `speedrun/calibrate.py`: all-seed target recommendation without mutation.
-- `speedrun/run.py`: timed training/evaluation loop.
-- `speedrun/summarize.py`: multi-seed official record aggregation.
-- `submission/`: editable reference implementation.
-- `configs/`: smoke and 50M calibration configurations.
+- `candidate.py`: model, optimizer, and pretraining objective. Edit this file.
+- `config.json`: model size, training budget, and optional target.
+- `speedrun.py`: fixed data contract, timing, checkpointing, and Contact P@L.
+- `plot_result.py`: dependency-light budget-curve renderer.
+- `run.sh`: Docker-only entrypoint using the large workspace disk.
+
+The checkpoint contract is:
+
+```python
+model = candidate.build_model(model_config)
+embeddings = model.encode(tokens, padding_mask)  # [B, L, D]
+```
+
+Each checkpoint includes `candidate.py`, `model.json`, `weights.pt`, hashes,
+and an external evaluation result. Single-GPU evaluation runs in a fresh
+Python process. DDP evaluation uses one persistent, isolated worker process
+per GPU; workers reconstruct the checkpoint and shard both probe fitting and
+scoring without entering the training processes. Evaluation is excluded from
+training time.
+
+## Metric
+
+The only quality number is long-range Contact P@L:
+
+- long-range separation: at least 24 residues;
+- contact: C-beta distance below 8 Å, with C-alpha fallback in the corpus;
+- score: per-protein precision among the top `L` predicted contacts, averaged
+  across eligible proteins; and
+- probe: the same deterministic linear contact probe for every checkpoint.
+
+Training loss is diagnostic only. MLM and causal objectives can be compared
+because both must expose the same residue embeddings.
+
+`target_contact_p_at_l` remains `null` in the initial config. A numeric target
+should only be frozen after longer reference runs across multiple seeds.
+
+## Run
+
+All project Python runs inside Docker. Docker state, data, and checkpoints must
+remain under `/mnt/workspace/sunweiwei_google_com/`.
+
+Synthetic end-to-end smoke:
+
+```bash
+./run.sh smoke
+```
+
+The smoke trains for two steps, evaluates step 0/1/2, reconstructs the final
+checkpoint, repeats its evaluation, and fails if the repeated score changes.
+
+Run the same tiny setup on the existing real `gold_small/v1` corpus:
+
+```bash
+./run.sh run
+```
+
+The default real corpus is:
+
+```text
+/mnt/workspace/sunweiwei_google_com/protein-pretrain-speedrun-data/gold_small_v1/corpus.npz
+```
+
+It contains 1,533 train sequences, 170 probe-training proteins, and 185
+probe-evaluation proteins with no sequence-cluster overlap. Its SHA-256 is:
+
+```text
+655432896642d8b0aae08f991904761daf769e909132ea9983fca2dcdbc5ef82
+```
+
+That 1,533-sequence corpus is only an integration fixture. It is too small
+for model or scaling conclusions. The first development pretraining corpus is
+a deterministic one-million-sequence sample of UniRef50 2021_04
+representatives. `prepare_uniref.py` downloads the historical release with
+resume plus MD5 verification, then materializes memory-mapped token and offset
+shards. The sharded loader keeps the large training split out of each DDP
+rank's Python heap. Materialization removes exact probe matches. Before this
+development corpus can become an official leaderboard corpus, an MMseqs
+cluster audit must also exclude homologs of both the contact probe and the
+frozen FoldBench targets; an exact-match-only corpus is not called
+leakage-audited.
+
+The first representative scale is `configs/esm2-150m-pilot.json`: 30 layers,
+width 640, 20 attention heads, and FFN width 2560. It contains 148,376,960
+parameters, matching the public ESM-2 150M size class while retaining this
+repository's deliberately simple Transformer implementation. The pilot config
+is only for memory, throughput, and contract checks; it is not a training
+budget. `configs/esm2-150m-d0.json` is the first development budget: BF16,
+global batch 2048 across eight H100s, 1,000 updates, 50 warmup updates, and
+checkpoints every 100 updates.
+
+Choose another physical GPU or seed:
+
+```bash
+PROTEIN_SPEEDRUN_GPU=1 ./run.sh run \
+  /mnt/workspace/sunweiwei_google_com/protein-pretrain-speedrun-data/gold_small_v1/corpus.npz \
+  /mnt/workspace/sunweiwei_google_com/protein-pretrain-speedrun-runs/seed-66 \
+  66
+```
+
+The trusted runner also supports synchronous DDP. `batch_size` is the global
+batch and must be divisible by `WORLD_SIZE`; `tokens_seen` is reduced across
+all ranks. Every rank trains, only global rank 0 writes checkpoints, and all
+isolated evaluator workers participate in the fixed Contact P@L evaluation:
+
+```bash
+torchrun --nnodes=1 --nproc-per-node=8 \
+  --master-addr=127.0.0.1 --master-port=29500 \
+  speedrun.py run \
+  --config config.json \
+  --corpus /data/gold_small_v1/corpus.npz \
+  --output /runs/ddp-example
+```
+
+Launch that command inside the same Docker image with all eight GPUs visible.
+Standard multi-node `torchrun` environment variables are supported; all nodes
+must see the same corpus and output filesystem.
+
+After the D0 corpus exists, the equivalent single-node launch is:
+
+```bash
+./run.sh ddp
+```
+
+Render the result as Contact P@L versus millions of training tokens:
+
+```bash
+python plot_result.py \
+  --result /runs/esm2-150m-d0/RUN_ID/result.json \
+  --output /runs/esm2-150m-d0/RUN_ID/budget-curve.png
+```
+
+Training enables deterministic CUDA, cuBLAS, and NCCL paths. Repeated
+same-seed jobs must produce tensor-identical checkpoints. This costs some
+throughput, but prevents small distributed floating-point differences from
+turning into different budget curves.
+
+## D0 reference run
+
+Seed 42 on eight H100 80GB GPUs completed 1,000 updates over corpus
+`f4d76eabe12265179d8e4f82151440d3a9c2a154ff0873c6e667083f0cef899a`.
+It processed 364,810,091 tokens in 449.38 seconds of measured training time.
+Contact P@L increased from 0.04252 at initialization to 0.05205, a 22.4%
+relative gain. The final checkpoint scored identically in a fresh standalone
+evaluator process. This is a development calibration result, not a
+leakage-audited FoldBench claim.
+
+## Scope
+
+This is an executable research kernel, not yet a competition platform.
+Multi-seed target calibration, official aggregation, post-training folding,
+FoldBench, and agent orchestration are deliberately deferred until this small
+loop is useful.
