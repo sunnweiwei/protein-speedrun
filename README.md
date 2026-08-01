@@ -2,6 +2,10 @@
 
 A minimal modded-nanoGPT-style loop for protein sequence pretraining.
 
+Moving the project to a new machine or onboarding another Agent? Start with
+[`HANDOVER.md`](HANDOVER.md) for the research context, verified artifacts,
+large-disk migration plan, and next experiments.
+
 The experiment asks one question:
 
 > How much H100 training time does a sequence model need to reach a fixed
